@@ -5,6 +5,27 @@ class DataLoader:
         self.data_file = data_file
         self.data = pd.read_csv(data_file, sep=';')
         self.data['Date'] = pd.to_datetime(self.data['Date'])
+        self.normalize_exercise_names()
+        self.propagate_workout_notes()
+        self.convert_weights_to_kg()
+
+    def normalize_exercise_names(self):
+        # Zorg ervoor dat alle oefennamen met een hoofdletter beginnen
+        self.data['Exercise Name'] = self.data['Exercise Name'].str.title()
+
+    def propagate_workout_notes(self):
+        # Verplaats de workout note naar elke set
+        for date, group in self.data.groupby('Date'):
+            workout_note = group['Workout Note'].iloc[0] if 'Workout Note' in group.columns else ""
+            if pd.notna(workout_note):
+                self.data.loc[group.index, 'Workout Note'] = workout_note
+
+    def convert_weights_to_kg(self):
+        # Zet gewichten om naar kg als ze in lbs zijn aangeduid
+        lbs_to_kg = 0.453592
+        mask = self.data['Weight Unit'].str.lower() == 'lbs'
+        self.data.loc[mask, 'Weight'] *= lbs_to_kg
+        self.data.loc[mask, 'Weight Unit'] = 'kg'
 
     def load_data(self):
         return self.data
@@ -39,9 +60,9 @@ class DataLoader:
         return unique_days.sort_values(ascending=not reverse).index.tolist()
 
     def get_exercise_sessions(self, exercise_name):
-        exercise_data = self.data[self.data['Exercise Name'] == exercise_name]
-        exercise_dict = {}
+        exercise_data = self.get_exercise_data(exercise_name)
+        sessions = {}
         for date, group in exercise_data.groupby('Date'):
-            sets = group[['Weight', 'Reps', 'Notes']].to_dict('records')
-            exercise_dict[date] = sets
-        return exercise_dict
+            sets = group[['Weight', 'Reps', 'Notes', 'Workout Note']].to_dict('records')
+            sessions[date] = sets
+        return sessions
