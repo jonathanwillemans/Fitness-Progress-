@@ -37,3 +37,11 @@ class DataLoader:
     def sort_exercises_by_unique_days(self, reverse=False):
         unique_days = self.data.groupby('Exercise Name')['Date'].nunique()
         return unique_days.sort_values(ascending=not reverse).index.tolist()
+
+    def get_exercise_sessions(self, exercise_name):
+        exercise_data = self.data[self.data['Exercise Name'] == exercise_name]
+        exercise_dict = {}
+        for date, group in exercise_data.groupby('Date'):
+            sets = group[['Weight', 'Reps', 'Notes']].to_dict('records')
+            exercise_dict[date] = sets
+        return exercise_dict
